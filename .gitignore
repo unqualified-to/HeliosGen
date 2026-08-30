@@ -46,5 +46,6 @@ next-env.d.ts
 
 # Guest mode — local DB and generated media
 /data/*.json
-/public/generated/**
-!/public/generated/.gitkeep
+# Generated assets live outside public/ — see lib/guest/storagePaths.ts
+/storage/generated/**
+!/storage/generated/.gitkeep
