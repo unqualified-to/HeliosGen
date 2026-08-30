@@ -27,15 +27,15 @@ export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
   const filename = req.nextUrl.searchParams.get("filename") ?? "download";
 
-  if (!url) return new NextResponse("Missing url", { status: 400 });
-  if (!isAllowed(url)) return new NextResponse("Forbidden", { status: 403 });
+  if (!url) return NextResponse.json({ error: "Missing url" }, { status: 400 });
+  if (!isAllowed(url)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let fetchUrl = url;
   if (GUEST_MODE && url.startsWith("/generated/")) {
     const resolved = new URL(url, req.nextUrl.origin);
     // Re-check after normalization: rejects "/generated/../api/..." traversal
     // that would otherwise turn this proxy into same-origin SSRF.
-    if (!resolved.pathname.startsWith("/generated/")) return new NextResponse("Forbidden", { status: 403 });
+    if (!resolved.pathname.startsWith("/generated/")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     fetchUrl = resolved.toString();
   }
 
@@ -43,11 +43,11 @@ export async function GET(req: NextRequest) {
   try {
     upstream = await fetch(fetchUrl);
   } catch {
-    return new NextResponse("Fetch failed", { status: 502 });
+    return NextResponse.json({ error: "Fetch failed" }, { status: 502 });
   }
 
   if (!upstream.ok) {
-    return new NextResponse("Upstream error", { status: upstream.status });
+    return NextResponse.json({ error: "Upstream error" }, { status: upstream.status });
   }
 
   const contentType = upstream.headers.get("content-type") ?? "application/octet-stream";

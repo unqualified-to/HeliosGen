@@ -17,6 +17,7 @@ import DotCanvasBackground from "@/components/ui/DotCanvasBackground";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
 import { browserNotify, requestNotificationPermission } from "@/lib/browserNotify";
+import { fetchAssetBlob, saveBlob } from "@/lib/downloadAsset";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -2825,17 +2826,7 @@ function GalleryInner() {
     const taskId = randomUUID();
     setDownloads(prev => [...prev, { id: taskId, filename, status: "preparing" }]);
     try {
-      const res = await fetch(`/api/download?url=${encodeURIComponent(url)}&filename=${filename}`);
-      if (!res.ok) throw new Error("Failed");
-      const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objectUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objectUrl);
+      saveBlob(await fetchAssetBlob(url, filename), filename);
       setDownloads(prev => prev.map(t => t.id === taskId ? { ...t, status: "ready" } : t));
     } catch {
       setDownloads(prev => prev.map(t => t.id === taskId ? { ...t, status: "error" } : t));
@@ -6840,14 +6831,10 @@ function Lightbox({ item, thumbUrl, onClose, onCopyPrompt, onPrev, onNext }: { i
       const urlExt = lightboxUrl.split("?")[0].split(".").pop()?.toLowerCase();
       const ext = isVideo ? "mp4" : (urlExt && ["png","jpg","jpeg","webp","gif"].includes(urlExt) ? urlExt : "png");
       const filename = `${isVideo ? "video" : "image"}-${item.id.slice(0, 8)}.${ext}`;
-      const res = await fetch(`/api/download?url=${encodeURIComponent(lightboxUrl)}&filename=${filename}`);
-      if (!res.ok) throw new Error("Download failed");
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      saveBlob(await fetchAssetBlob(lightboxUrl, filename), filename);
+    } catch (err) {
+      console.error("[gallery] lightbox download failed", err);
+      alert(err instanceof Error ? err.message : "Download failed");
     } finally {
       setDownloading(false);
     }
