@@ -14,11 +14,28 @@
  *    are served by app/generated/[...path] and are reachable without the proxy
  *    hop, so we request them directly and skip the redirect entirely.
  */
+/** Return the same-origin path for a stored asset URL, or null if it is remote. */
+export function toLocalPath(url: string): string | null {
+  if (url.startsWith("/generated/")) return url;
+  try {
+    const u = new URL(url, window.location.origin);
+    if (u.origin === window.location.origin && u.pathname.startsWith("/generated/")) {
+      return u.pathname + u.search;
+    }
+  } catch {
+    // not a parseable URL — treat as remote
+  }
+  return null;
+}
+
 export async function fetchAssetBlob(url: string, filename: string): Promise<Blob> {
   // Same-origin stored assets need no proxying: the caller builds its own blob
   // and sets the download filename, so Content-Disposition is not required.
-  const endpoint = url.startsWith("/generated/")
-    ? url
+  // Stored records may be absolute (ensureStorage prefixes CALLBACK_BASE_URL) or
+  // relative; both denote the same local asset, and neither needs the proxy.
+  const localPath = toLocalPath(url);
+  const endpoint = localPath
+    ? localPath
     : `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
 
   let res: Response;

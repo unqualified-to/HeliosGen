@@ -26,6 +26,19 @@ export async function stripMetadata(buffer: Buffer, contentType: string): Promis
         "-y", outputPath,
       ]);
       return await readFile(outputPath);
+    } catch (err) {
+      // ffmpeg is optional at runtime. Without this, a missing binary rejected the
+      // whole upload, callers fell back to persisting the provider's temporary
+      // URL, and the asset later expired out from under the gallery. Storing the
+      // video unstripped is strictly better than not storing it at all.
+      if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+        console.warn(
+          "[stripMetadata] ffmpeg not found — storing video with metadata intact. " +
+          "Install ffmpeg in the runtime image to restore stripping.",
+        );
+        return buffer;
+      }
+      throw err;
     } finally {
       await Promise.all([
         unlink(inputPath).catch(() => {}),
